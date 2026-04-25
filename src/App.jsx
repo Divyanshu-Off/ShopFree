@@ -6,6 +6,7 @@ import AIAnalysisView from './components/AIAnalysisView';
 import ResultsDashboard from './components/ResultsDashboard';
 import Footer from './components/Footer';
 import { mockRecommendations } from './data/mockData';
+import './App.css';
 
 const App = () => {
   const [appState, setAppState] = useState('home'); // home, inquiry, analyzing, results
@@ -50,10 +51,10 @@ const App = () => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? 'dark' : ''}`}>
+    <div className={`app-container ${darkMode ? 'dark' : ''}`}>
       <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       
-      <main className="flex-grow">
+      <main className="main-content">
         {appState === 'home' && (
           <Hero onStart={handleStartInquiry} />
         )}
@@ -77,14 +78,14 @@ const App = () => {
 
       {/* Trust Badges section for home */}
       {appState === 'home' && (
-        <section className="py-20 bg-slate-50 border-y border-border">
-          <div className="container text-center">
-            <h3 className="text-sm font-bold text-text-muted uppercase tracking-[0.2em] mb-12">Trusted by global savvy shoppers</h3>
-            <div className="flex flex-wrap justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all">
-              <span className="text-2xl font-black font-heading">SHOPSTYLE</span>
-              <span className="text-2xl font-black font-heading">VOGUE</span>
-              <span className="text-2xl font-black font-heading">WIRED</span>
-              <span className="text-2xl font-black font-heading">TECHGEAR</span>
+        <section className="trust-badges-section">
+          <div className="container">
+            <h3 className="trust-badges-title">Trusted by global savvy shoppers</h3>
+            <div className="trust-badges-grid">
+              <span className="trust-badge-item">SHOPSTYLE</span>
+              <span className="trust-badge-item">VOGUE</span>
+              <span className="trust-badge-item">WIRED</span>
+              <span className="trust-badge-item">TECHGEAR</span>
             </div>
           </div>
         </section>

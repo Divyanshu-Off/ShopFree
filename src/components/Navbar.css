@@ -1,0 +1,139 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.navbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.nav-brand-icon {
+  background: var(--grad-emerald);
+  padding: var(--space-3);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 15px -3px rgba(16, 185, 129, 0.3);
+  transition: transform 0.5s var(--ease-spring);
+}
+
+.nav-brand:hover .nav-brand-icon {
+  transform: rotate(15deg) scale(1.05);
+}
+
+.nav-brand-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  font-family: var(--font-heading);
+  letter-spacing: -0.05em;
+}
+
+.nav-brand-text span {
+  color: var(--c-emerald-600);
+  font-style: italic;
+}
+
+[data-theme='dark'] .nav-brand-text span {
+  color: var(--c-emerald-400);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-12);
+  list-style: none;
+}
+
+.nav-link {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s var(--ease-out-expo);
+}
+
+.nav-link:hover {
+  color: var(--c-emerald-600);
+}
+
+[data-theme='dark'] .nav-link:hover {
+  color: var(--c-emerald-400);
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--c-emerald-500);
+  transition: width 0.3s var(--ease-out-expo);
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--border-color);
+}
+
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.btn-theme-toggle {
+  padding: var(--space-3);
+  border-radius: var(--radius-xl);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.btn-theme-toggle:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.btn-theme-toggle:active {
+  transform: scale(0.9);
+}
+
+.btn-theme-toggle svg {
+  transition: color 0.3s var(--ease-out-expo);
+}
+
+.btn-theme-toggle:hover svg {
+  color: var(--c-amber-500);
+}
+
+/* Responsive hide */
+@media (max-width: 1024px) {
+  .nav-links, .nav-divider {
+    display: none;
+  }
+}
