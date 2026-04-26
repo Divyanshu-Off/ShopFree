@@ -16,24 +16,55 @@ const AIAnalysisView = ({ formData, onComplete }) => {
   ];
 
   useEffect(() => {
+    let resultData = null;
+    let isComplete = false;
+
+    // 1. Start the real analysis fetch
+    const fetchAnalysis = async () => {
+      try {
+        const response = await fetch('/api/recommend-product', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Analysis failed');
+        resultData = await response.json();
+      } catch (err) {
+        console.error('Fetch error:', err);
+        // Fallback handled in App.jsx
+      } finally {
+        isComplete = true;
+      }
+    };
+
+    fetchAnalysis();
+
+    // 2. Control the progress animation
     const interval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(onComplete, 1200);
-          return 100;
+        // Slow down as we reach the end if fetch isn't done
+        const increment = prev < 90 ? Math.random() * 6 : (isComplete ? 2 : 0.1);
+        const next = prev + increment;
+        
+        if (next >= 100) {
+          if (isComplete) {
+            clearInterval(interval);
+            setTimeout(() => onComplete(resultData), 800);
+            return 100;
+          }
+          return 99; // Hold at 99% until backend responds
         }
         
-        const next = prev + Math.random() * 6;
         const currentStep = steps.find(s => next <= s.threshold) || steps[steps.length - 1];
         setStatus(currentStep.message);
         
-        return next > 100 ? 100 : next;
+        return next;
       });
     }, 180);
 
     return () => clearInterval(interval);
-  }, [onComplete]);
+  }, [onComplete, formData]);
 
   return (
     <div className="section-padding analysis-container">

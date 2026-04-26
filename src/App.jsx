@@ -35,10 +35,14 @@ const App = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAnalysisComplete = () => {
-    // In a real app, this would fetch from an API based on formData
-    // For the demo, we use the shampoo mock data
-    setRecommendation(mockRecommendations[formData.category] || mockRecommendations.shampoo);
+  const handleAnalysisComplete = (data) => {
+    // If data is provided (from live API), use it. Otherwise fallback to mock.
+    if (data && data.recommendation) {
+      setRecommendation(data.recommendation);
+    } else {
+      setRecommendation(mockRecommendations[formData.category] || mockRecommendations.shampoo);
+    }
+    
     setAppState('results');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
