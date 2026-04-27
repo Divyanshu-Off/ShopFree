@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import axios from 'axios';
-import * as cheerio from 'cheerio';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Load environment variables
@@ -11,10 +10,6 @@ dotenv.config({ path: '../.env' });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-04-17" });
 
 // Middleware
 app.use(cors());
@@ -26,131 +21,110 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'ShopFree Backend is running' });
 });
 
-/**
- * Main recommendation endpoint
- * 1. Generates a search query using Gemini
- * 2. Searches the web for products
- * 3. Scrapes data (simplified for now)
- * 4. Ranks products using Gemini
- */
 app.post('/api/recommend-product', async (req, res) => {
   try {
     const formData = req.body;
-    console.log('Received inquiry:', formData);
+    console.log('\n--- New Inquiry Received ---');
+    console.log('Data:', JSON.stringify(formData, null, 2));
 
     if (!formData || !formData.category) {
-      return res.status(400).json({ error: 'Invalid form data' });
+      return res.status(400).json({ error: 'Missing product category' });
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      console.error("Missing GEMINI_API_KEY");
-      return res.status(500).json({ error: 'Server configuration error: Missing Gemini API Key' });
+      console.error('CRITICAL: GEMINI_API_KEY is missing from .env');
+      return res.status(500).json({ error: 'Server config error: Missing Gemini API Key' });
     }
 
+    // Initialize Gemini inside the request for fresh key loading
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
     // STEP 1: Generate Search Query
-    const queryPrompt = `
-      You are an expert shopping assistant. Given the following user profile, generate a single, highly optimized Google Search query to find real product reviews and listings that match their needs perfectly.
-      
-      User Profile:
-      - Category: ${formData.category}
-      - Age: ${formData.age}
-      - Location: ${formData.city}
-      - Climate: ${formData.climate}
-      - Needs: ${Object.values(formData.additionalInfo || {}).join(', ')}
-      
-      Return ONLY the search query string.
-    `;
+    console.log('Step 1: Generating optimized search query...');
+    const queryPrompt = `Generate a single Google search query to find the best ${formData.category} for a ${formData.age} year old in ${formData.city} (${formData.climate} climate). Focus on reviews and reliable buying guides. Return ONLY the search query text.`;
     
     const queryResult = await model.generateContent(queryPrompt);
     const searchQuery = queryResult.response.text().trim().replace(/"/g, '');
-    console.log('Generated Search Query:', searchQuery);
+    console.log('Query Result:', searchQuery);
 
-    // STEP 2: Web Search (Using Serper.dev as primary)
+    // STEP 2: Web Search (Serper)
+    console.log('Step 2: Searching web via Serper...');
     let searchResults = [];
     if (process.env.SERPER_API_KEY) {
-      console.log('Searching Serper for:', searchQuery);
-      const serperRes = await axios.post('https://google.serper.dev/search', {
-        q: searchQuery,
-        num: 10
-      }, {
+      const serperData = JSON.stringify({ "q": searchQuery, "num": 8 });
+      const serperConfig = {
+        method: 'post',
+        url: 'https://google.serper.dev/search',
         headers: { 
-          'X-API-KEY': process.env.SERPER_API_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
+          'X-API-KEY': process.env.SERPER_API_KEY, 
+          'Content-Type': 'application/json' 
+        },
+        data: serperData
+      };
+      const serperRes = await axios.request(serperConfig);
       searchResults = serperRes.data.organic || [];
-      console.log(`Found ${searchResults.length} search results.`);
+      console.log(`Success: Found ${searchResults.length} results.`);
     } else {
-      console.warn('SERPER_API_KEY not found. Falling back to empty results.');
+      console.warn('Warning: SERPER_API_KEY missing. No web results found.');
     }
 
-    // STEP 3: Scrape & Evidence Collection (Stub for now)
-    const productEvidence = searchResults.map(result => ({
-      title: result.title,
-      snippet: result.snippet,
-      link: result.link
+    // STEP 3: Format Evidence
+    const productEvidence = searchResults.map(r => ({
+      title: r.title,
+      snippet: r.snippet,
+      link: r.link
     }));
 
-
-    // STEP 4: Rank with Gemini
+    // STEP 4: Rank & Analyze with Gemini
+    console.log('Step 4: Analyzing results with AI...');
     const rankPrompt = `
-      You are BestFit AI. Analyze the following product search results for a user and pick the single best match and 2 alternatives.
+      As BestFit AI, pick the #1 best product and 2 alternatives from these results for:
+      Product: ${formData.category}, User: ${formData.age}yo in ${formData.city} (${formData.climate}).
       
-      User Profile:
-      - Category: ${formData.category}
-      - Age: ${formData.age}
-      - Location: ${formData.city}
-      - Climate: ${formData.climate}
-      
-      Search Results:
+      Results to analyze:
       ${JSON.stringify(productEvidence, null, 2)}
       
-      Return a VALID JSON object matching this schema exactly:
+      Return ONLY a JSON object with this exact structure:
       {
         "bestMatch": {
           "name": "string",
           "brand": "string",
-          "matchScore": number (0-100),
+          "matchScore": number,
           "price": "string",
-          "image": "string (use a high quality unsplash URL if no real image found)",
-          "aiExplanation": "string (one sentence)",
-          "whyMatch": ["string", "string", "string"],
-          "pros": ["string", "string", "string"],
-          "cautions": ["string", "string"],
-          "reviewSummary": {
-            "sentiment": "Positive/Mixed",
-            "bestFor": "string",
-            "praise": "string",
-            "complaints": "string"
-          },
+          "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
+          "aiExplanation": "string",
+          "whyMatch": ["string", "string"],
+          "pros": ["string"],
+          "cautions": ["string"],
+          "reviewSummary": { "sentiment": "Positive", "bestFor": "string", "praise": "string", "complaints": "string" },
           "link": "string"
         },
         "alternatives": [
-          { "name": "string", "brand": "string", "matchScore": number, "price": "string", "image": "string", "aiExplanation": "string", "link": "string" },
           { "name": "string", "brand": "string", "matchScore": number, "price": "string", "image": "string", "aiExplanation": "string", "link": "string" }
         ]
       }
     `;
 
-    const rankResult = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: rankPrompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
-    });
+    const rankResult = await model.generateContent(rankPrompt);
+    const rawResponse = rankResult.response.text();
     
-    const rawText = rankResult.response.text();
-    const recommendation = JSON.parse(rawText);
+    // Clean JSON response (sometimes Gemini adds ```json ... ```)
+    const jsonString = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    const recommendation = JSON.parse(jsonString);
 
+    console.log('Analysis Complete! Sending recommendation.');
     res.json({ recommendation });
 
   } catch (error) {
-    console.error('Error in recommendation pipeline:', error);
+    console.error('--- ERROR IN PIPELINE ---');
+    console.error('Message:', error.message);
+    if (error.response) console.error('Response:', error.response.data);
     res.status(500).json({ error: 'Failed to process recommendation', details: error.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 BestFit AI Backend running on http://localhost:${PORT}`);
+  console.log(`\n🚀 ShopFree Backend Live at http://localhost:${PORT}`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/api/health\n`);
 });
