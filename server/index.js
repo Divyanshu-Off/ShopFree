@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3001;
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-04-17" });
 
 // Middleware
 app.use(cors());
@@ -42,6 +42,11 @@ app.post('/api/recommend-product', async (req, res) => {
       return res.status(400).json({ error: 'Invalid form data' });
     }
 
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("Missing GEMINI_API_KEY");
+      return res.status(500).json({ error: 'Server configuration error: Missing Gemini API Key' });
+    }
+
     // STEP 1: Generate Search Query
     const queryPrompt = `
       You are an expert shopping assistant. Given the following user profile, generate a single, highly optimized Google Search query to find real product reviews and listings that match their needs perfectly.
@@ -63,24 +68,29 @@ app.post('/api/recommend-product', async (req, res) => {
     // STEP 2: Web Search (Using Serper.dev as primary)
     let searchResults = [];
     if (process.env.SERPER_API_KEY) {
+      console.log('Searching Serper for:', searchQuery);
       const serperRes = await axios.post('https://google.serper.dev/search', {
         q: searchQuery,
         num: 10
       }, {
-        headers: { 'X-API-KEY': process.env.SERPER_API_KEY }
+        headers: { 
+          'X-API-KEY': process.env.SERPER_API_KEY,
+          'Content-Type': 'application/json'
+        }
       });
       searchResults = serperRes.data.organic || [];
+      console.log(`Found ${searchResults.length} search results.`);
     } else {
       console.warn('SERPER_API_KEY not found. Falling back to empty results.');
     }
 
     // STEP 3: Scrape & Evidence Collection (Stub for now)
-    // In a full implementation, we'd fetch the HTML of top results
     const productEvidence = searchResults.map(result => ({
       title: result.title,
       snippet: result.snippet,
       link: result.link
     }));
+
 
     // STEP 4: Rank with Gemini
     const rankPrompt = `
@@ -122,14 +132,15 @@ app.post('/api/recommend-product', async (req, res) => {
       }
     `;
 
-    const rankResult = await model.generateContent(rankPrompt);
+    const rankResult = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: rankPrompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
+    
     const rawText = rankResult.response.text();
-    
-    // Clean JSON (remove markdown code blocks if present)
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Failed to generate valid JSON from Gemini');
-    
-    const recommendation = JSON.parse(jsonMatch[0]);
+    const recommendation = JSON.parse(rawText);
 
     res.json({ recommendation });
 

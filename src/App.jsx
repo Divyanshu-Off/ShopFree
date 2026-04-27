@@ -36,16 +36,16 @@ const App = () => {
   };
 
   const handleAnalysisComplete = (data) => {
-    // If data is provided (from live API), use it. Otherwise fallback to mock.
     if (data && data.recommendation) {
       setRecommendation(data.recommendation);
+      setAppState('results');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setRecommendation(mockRecommendations[formData.category] || mockRecommendations.shampoo);
+      alert("Error: The backend failed to return real data. Please check the backend terminal for errors (ensure you ran 'npm run dev' inside the 'server' folder).");
+      setAppState('home');
     }
-    
-    setAppState('results');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleReset = () => {
     setAppState('home');
